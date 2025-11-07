@@ -3,7 +3,7 @@ version: "3.9"
 services:
   frontend:
     build: ./frontend
-    container_name: ecommerce_frontend
+    container_name: frontend
     ports:
       - "3000:3000"
     depends_on:
@@ -15,7 +15,7 @@ services:
 
   backend:
     build: ./backend
-    container_name: ecommerce_backend
+    container_name: backend
     ports:
       - "4000:4000"
     depends_on:
@@ -26,7 +26,7 @@ services:
 
   db:
     image: postgres:16
-    container_name: ecommerce_db
+    container_name: database
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
