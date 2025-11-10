@@ -16,9 +16,9 @@ case "$1" in
   restart-all ) echo "Reiniciando servidores..."
     docker compose -f docker-compose.yml restart
     ;;
-  log ) docker-compose -f docker-compose.yml logs -f $2
+  log ) docker compose -f docker-compose.yml logs -f $2
 		;;
-	logs ) docker-compose -f docker-compose.yml logs -f
+	logs ) docker compose -f docker-compose.yml logs -f
     ;;
   sh ) echo "Conectando con $2..."
     docker exec -it $2 sh
