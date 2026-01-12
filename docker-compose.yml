@@ -1,0 +1,44 @@
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+  
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app # Mapea la carpeta local 'backend' a '/app' en el contenedor.
+      - /app/node_modules # Evita que Docker mapee node_modules local y usa el del contenedor.
+    #command: node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts
+
+  db:
+    image: postgres:16
+    container_name: database
+    enviroment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  
+volumes:
+  db_data
