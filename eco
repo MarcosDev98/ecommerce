@@ -1,0 +1,35 @@
+#!/bin/bash
+
+case "$1" in
+  build ) echo "Instalando..."
+    docker compose -f docker-compose.yml build
+    ;;
+  up ) echo "Iniciando servidores..."
+    docker compose -f docker-compose.yml up -d
+    ;;
+  down ) echo "Deteniendo servidores..."
+    docker compose -f docker-compose.yml down
+    ;;
+  restart ) echo "Reiniciando servidores..."
+    docker compose -f docker-compose.yml restart
+    ;;
+  log ) docker compose -f docker-compose.yml logs -f $2
+    ;;
+  logs ) docker compose -f docker-compose.yml logs -f
+    ;;
+  sh ) echo "Conectando con $2"
+    docker exec -it $2 sh
+    ;;
+  help | * ) 
+    echo "Uso: ./docker.sh [comando]"
+    echo ""
+    echo "Comandos disponibles:"
+    echo "  build    - Construir imágenes"
+    echo "  up       - Iniciar servicios"
+    echo "  down     - Detener servicios"
+    echo "  restart  - Reiniciar servicios"
+    echo "  logs     - Ver logs de todos los servicios"
+    echo "  log [servicio] - Ver logs de un servicio específico"
+    echo "  sh [contenedor] - Conectar a un contenedor"
+    ;;
+esac

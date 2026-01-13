@@ -1,44 +1,76 @@
-services:
-  frontend:
-    build: ./frontend
-    container_name: frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    stdin_open: true
-    tty: true
-  
-  backend:
-    build: ./backend
-    container_name: backend
-    ports:
-      - "4000:4000"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app # Mapea la carpeta local 'backend' a '/app' en el contenedor.
-      - /app/node_modules # Evita que Docker mapee node_modules local y usa el del contenedor.
-    #command: node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts
 
-  db:
-    image: postgres:16
+services:
+  # Base de datos PostgreSQL
+  database:
+    image: postgres:16-alpine
     container_name: database
-    enviroment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ecommerce
-    volumes:
-      - db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-ecommerce_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecommerce_password}
+      POSTGRES_DB: ${DB_NAME:-ecommerce}
     ports:
-      - "5432:5432"
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql # Opcional
+    networks:
+      - ecommerce-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-ecommerce_user} -d ${DB_NAME:-ecommerce}']
+      interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-  
+
+  # Backend NestJS
+  backend:
+    build:
+      context: ./backend/ecommerce-app
+      dockerfile: Dockerfile
+      target: development
+    container_name: backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-ecommerce_user}:${DB_PASSWORD:-ecommerce_password}@database:5432/${DB_NAME:-ecommerce}
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend/ecommerce-app:/app
+      - /app/node_modules
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    command: pnpm run start:dev
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - ecommerce-network
+    command: pnpm run dev
+
+networks:
+  ecommerce-network:
+    driver: bridge
+
 volumes:
-  db_data
+  postgres_data:
