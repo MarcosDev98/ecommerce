@@ -25,7 +25,7 @@ services:
   # Backend NestJS
   backend:
     build:
-      context: ./backend/ecommerce-app
+      context: ./backend
       dockerfile: Dockerfile
       target: development
     container_name: backend
@@ -37,7 +37,7 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      - ./backend/ecommerce-app:/app
+      - ./backend:/app
       - /app/node_modules
     depends_on:
       database:
