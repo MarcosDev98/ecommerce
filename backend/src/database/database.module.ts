@@ -2,7 +2,8 @@ import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './schema/user-schema'; // Importa tus esquemas aquí
+import * as userSchema from '../users/entities/user.schema'; // Importa tus esquemas aquí
+import * as productSchema from '../products/entities/products.schema';
 
 export const DRIZZLE = 'DRIZZLE'; // Token único para inyección
 
@@ -17,8 +18,10 @@ export const DRIZZLE = 'DRIZZLE'; // Token único para inyección
         const pool = new Pool({
           connectionString,
         });
-        // Pasamos el schema para tener autocompletado en todo el proyecto
-        return drizzle(pool, { schema });
+        // Unimos todos los esquemas en un solo objeto.
+        return drizzle(pool, {
+          schema: { ...userSchema, ...productSchema }
+        });
       },
     },
   ],

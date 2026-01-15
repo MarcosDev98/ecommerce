@@ -8,6 +8,20 @@
       "when": 1768416226918,
       "tag": "0000_wild_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768473167598,
+      "tag": "0001_cloudy_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768474677687,
+      "tag": "0002_equal_senator_kelly",
+      "breakpoints": true
     }
   ]
 }
