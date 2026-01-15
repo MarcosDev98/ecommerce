@@ -1,11 +1,22 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as userSchema from '../users/entities/user.schema'; // Importa tus esquemas aquí
 import * as productSchema from '../products/entities/products.schema';
+import * as orderSchema from '../orders/entities/order.schema';
+import * as orderItemSchema from '../orders/entities/order-item.schema';
 
 export const DRIZZLE = 'DRIZZLE'; // Token único para inyección
+
+export const appSchema = {
+  ...userSchema,
+  ...productSchema,
+  ...orderSchema,
+  ...orderItemSchema
+};
+
+export type DrizzleDB = NodePgDatabase<typeof appSchema>;
 
 @Global()
 @Module({
@@ -19,9 +30,7 @@ export const DRIZZLE = 'DRIZZLE'; // Token único para inyección
           connectionString,
         });
         // Unimos todos los esquemas en un solo objeto.
-        return drizzle(pool, {
-          schema: { ...userSchema, ...productSchema }
-        });
+        return drizzle(pool, {schema: appSchema });
       },
     },
   ],
