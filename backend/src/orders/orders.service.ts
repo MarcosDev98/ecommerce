@@ -1,12 +1,12 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { DRIZZLE } from '../database/database.module';
 import type { DrizzleDB } from '../database/database.module';
-import * as orderSchema from './entities/order.schema';
+import { ordersTable, orderItemsTable } from './entities/order.schema';
 import * as itemSchema from './entities/order-item.schema';
-import * as productSchema from '../products/entities/products.schema';
+import { productsTable } from '../products/entities/products.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 @Injectable()
 export class OrdersService {
@@ -16,50 +16,75 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto) {
     const { userId, items } = createOrderDto;
-    
+
+    // 1. Iniciar la transacción
     return await this.db.transaction(async (tx) => {
-      const productIds = items.map((i) => i.productId);
-
-      const dbProducts = await tx.query.productsTable.findMany({
-        where: inArray(productSchema.productsTable.id, productIds),
-      });
-
-      if (dbProducts.length !== items.length) {
-        throw new BadRequestException('Uno o más productos no existen');
-      }
-
       let total = 0;
-      const itemsToInsert = items.map((item) => {
-        const product = dbProducts.find((p) => p.id === item.productId);
 
-        if (!product) {
-          throw new BadRequestException(`Producto con ID ${item.productId} no existe`);
-        }
+      // 2. Obtener todos los productos involucrados para validar stock y precio actual
+      const productIds = items.map((i) => i.productId);
+      const dbProducts = await tx
+        .select()
+        .from(productsTable)
+        .where(inArray(productsTable.id, productIds));
 
-        const price = parseFloat(product.price);
-        total += price * item.quantity;
+      // 3. Validar y preparar los items para la inserción
+      const itemsToInsert = await Promise.all(
+        items.map(async (item) => {
+          const product = dbProducts.find((p) => p.id === item.productId);
 
-        return {
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtPurchase: price.toString(),
-        };
-      });
+          if (!product) {
+            throw new BadRequestException(`Producto con ID ${item.productId} no encontrado`);
+          }
 
+          // Validación de Stock
+          if (product.stock < item.quantity) {
+            throw new BadRequestException(
+              `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Solicitado: ${item.quantity}`,
+            );
+          }
 
+          const price = parseFloat(product.price);
+          total += price * item.quantity;
+
+          // 4. Actualizar stock del producto (Resta atómica)
+          await tx
+            .update(productsTable)
+            .set({
+              stock: sql`${productsTable.stock} - ${item.quantity}`,
+            })
+            .where(eq(productsTable.id, item.productId));
+
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtPurchase: price.toString(),
+          };
+        }),
+      );
+
+      // 5. Crear la cabecera de la Orden
       const [newOrder] = await tx
-        .insert(orderSchema.ordersTable)
+        .insert(ordersTable)
         .values({
           userId,
           total: total.toString(),
         })
-        .returning()
+        .returning();
 
-        await tx.insert(itemSchema.orderItemsTable).values(
-          itemsToInsert.map((i) => ({ ...i, orderId: newOrder.id })),
-        );
+      // 6. Crear los detalles de la Orden (Order Items)
+      const orderItemsPrepared = itemsToInsert.map((item) => ({
+        ...item,
+        orderId: newOrder.id,
+      }));
 
-        return this.findOne(newOrder.id);
+      await tx.insert(orderItemsTable).values(orderItemsPrepared);
+
+      // 7. Retornar la orden creada con sus items
+      return {
+        ...newOrder,
+        items: orderItemsPrepared,
+      };
     });
   }
 
@@ -78,7 +103,7 @@ export class OrdersService {
 
   async findOne(id: number) {
     return await this.db.query.ordersTable.findFirst({
-      where: eq(orderSchema.ordersTable.id, id),
+      where: eq(ordersTable.id, id),
       with: {
         user: {
           columns: {
@@ -88,6 +113,20 @@ export class OrdersService {
         }
       }
     })
+  }
+
+
+  async findByUser(userId: number) {
+    return await this.db.query.ordersTable.findMany({
+      where: eq(ordersTable.userId, userId),
+      with: {
+        items: {
+          with: {
+            product: true,
+          },
+        },
+      },
+    });
   }
 
   update(id: number, updateOrderDto: UpdateOrderDto) {
