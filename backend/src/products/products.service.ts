@@ -5,6 +5,8 @@ import * as schema from './entities/products.schema';
 import { DRIZZLE } from 'src/database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
+import * as fs from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class ProductsService {
@@ -46,9 +48,16 @@ export class ProductsService {
   }
 
   async remove(id: number) {
-    return await this.db
-      .delete(schema.productsTable)
-      .where(eq(schema.productsTable.id, id))
-      .returning()
+    const product = await this.findOne(id);
+
+    if (product && product.image) {
+      const filePath = join(process.cwd(), product.image);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+    }
+    return await this.db.delete(schema.productsTable).where(eq(schema.productsTable.id, id));
   }
 }
