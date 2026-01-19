@@ -1,20 +1,34 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(createOrderDto);
+  async create(@Body() createOrderDto: CreateOrderDto, @Request() req) {
+    const userIdFromToken = req.user.userId;
+
+    return this.ordersService.create({
+      ...createOrderDto,
+      userId: userIdFromToken,
+    });
   }
 
   @Get()
   findAll() {
     return this.ordersService.findAll();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-orders')
+  async findMyOrders(@Request() req) {
+    const userId = req.user.userId;
+    return this.ordersService.findByUser(userId);
   }
 
   @Get(':id')
@@ -31,4 +45,5 @@ export class OrdersController {
   remove(@Param('id') id: string) {
     return this.ordersService.remove(+id);
   }
+
 }

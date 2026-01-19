@@ -1,23 +1,44 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { DRIZZLE } from '../database/database.module'
+import { DRIZZLE } from '../database/database.module';
+import type { DrizzleDB } from '../database/database.module';
 import * as schema from './entities/user.schema';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
-  ) {}
+    @Inject(DRIZZLE) private readonly db: DrizzleDB
+  ) { }
 
 
   async create(createUserDto: CreateUserDto) {
-    return await this.db
+    console.log('--- ENTRANDO AL CREATE DEL SERVICIO ---');
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
+    console.log('Password original:', createUserDto.password);
+    console.log('Hash generado:', hashedPassword);
+
+    const [newUser] = await this.db
       .insert(schema.usersTable)
-      .values(createUserDto)
+      .values({
+        name: createUserDto.name,
+        email: createUserDto.email,
+        password: hashedPassword,
+        age: createUserDto.age ?? null,
+      })
       .returning();
+
+    const { password, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  }
+
+  async findByEmail(email: string) {
+    return await this.db.query.usersTable.findFirst({
+      where: eq(schema.usersTable.email, email),
+    });
   }
 
   async findAll() {
