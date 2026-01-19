@@ -1,1 +1,3 @@
 .env
+backend/uploads/products/*
+!backend/uploads/products/.gitkeep
