@@ -3,11 +3,14 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
+  @ApiBearerAuth()
+  @ApiTags('orders')
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() createOrderDto: CreateOrderDto, @Request() req) {

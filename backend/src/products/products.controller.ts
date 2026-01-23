@@ -8,13 +8,28 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { ApiBearerAuth, ApiTags, ApiBody, ApiConsumes } from '@nestjs/swagger';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) { }
 
   @Post('upload')
+  @ApiBearerAuth()
+  @ApiTags('products')
   @Roles('admin')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: './uploads/products',
@@ -39,6 +54,11 @@ export class ProductsController {
       }),
     ) file: Express.Multer.File,
   ) {
+
+    if (!file) {
+      throw new BadRequestException('No se ha recibido ningún archivo. Asegúrate de que el campo se llame "file"')
+    }
+
     // Validación manual extra por seguridad
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
@@ -50,6 +70,8 @@ export class ProductsController {
     };
   }
 
+  @ApiBearerAuth()
+  @ApiTags('products')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Post()
