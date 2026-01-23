@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Min, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProductDto {
@@ -21,8 +21,13 @@ export class CreateProductDto {
   @Min(0)
   stock: number;
 
-  @ApiProperty({ required: false, example: '/uploads/products/image.jpg' })
-  @IsString()
+  @ApiProperty({ 
+    required: false, 
+    example: '/uploads/products/image1.jpg, /upload/products/image2.png',
+    description: 'Arreglo de URLs de las imágenes ya subidas'
+  })
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  image?: string;
+  images?: string[];
 }

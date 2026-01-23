@@ -6,6 +6,5 @@ export const productsTable = pgTable("products", {
   description: text(),
   price: decimal({ precision: 10, scale: 2 }).notNull(),
   stock: integer().default(0).notNull(),
-  image: text(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
