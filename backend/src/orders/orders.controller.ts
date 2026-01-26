@@ -25,10 +25,7 @@ export class OrdersController {
   async create(@Body() createOrderDto: CreateOrderDto, @Request() req) {
     const userIdFromToken = req.user.userId;
 
-    return this.ordersService.create({
-      ...createOrderDto,
-      userId: userIdFromToken,
-    });
+    return this.ordersService.create(createOrderDto, userIdFromToken);
   }
 
   @Get()

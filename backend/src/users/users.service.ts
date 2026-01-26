@@ -1,10 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DRIZZLE } from '../database/database.module';
 import type { DrizzleDB } from '../database/database.module';
-import * as schema from './entities/user.schema';
-import { eq } from 'drizzle-orm';
+import { usersTable } from './entities/user.schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class UsersService {
     console.log('Hash generado:', hashedPassword);
 
     const [newUser] = await this.db
-      .insert(schema.usersTable)
+      .insert(usersTable)
       .values({
         name: createUserDto.name,
         email: createUserDto.email,
@@ -37,32 +37,46 @@ export class UsersService {
 
   async findByEmail(email: string) {
     return await this.db.query.usersTable.findFirst({
-      where: eq(schema.usersTable.email, email),
+      where: and(
+        eq(usersTable.email, email),
+        isNull(usersTable.deletedAt)
+      )
     });
   }
 
   async findAll() {
-    return await this.db.query.usersTable.findMany();
+    return await this.db
+      .select()
+      .from(usersTable)
+      .where(isNull(usersTable.deletedAt));
   }
 
   async findOne(id: number) {
     return await this.db.query.usersTable.findFirst({
-      where: eq(schema.usersTable.id, id),
+      where: eq(usersTable.id, id),
     });
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     return await this.db
-      .update(schema.usersTable)
+      .update(usersTable)
       .set(updateUserDto)
-      .where(eq(schema.usersTable.id, id))
+      .where(eq(usersTable.id, id))
       .returning()
   }
 
   async remove(id: number) {
+
+    const user = await this.findOne(id);
+
+    if (!user) {
+      throw new NotFoundException(`No existe un usuario con ID: ${id}`);
+    }
+
     return await this.db
-      .delete(schema.usersTable)
-      .where(eq(schema.usersTable.id, id))
+      .update(usersTable)
+      .set({ deletedAt: new Date() })
+      .where(eq(usersTable.id, id))
       .returning()
   }
 }

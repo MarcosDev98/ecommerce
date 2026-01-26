@@ -11,6 +11,7 @@ export const ordersTable = pgTable("orders", {
   total: numeric({ precision: 10, scale: 2 }).notNull(),
   status: orderStatusEnum('status').default('PENDING').notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 });
 
 export const orderItemsTable = pgTable("order_items", {
