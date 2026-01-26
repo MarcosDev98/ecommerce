@@ -1,13 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) { }
+
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('my-orders')
+  @ApiOperation({ summary: 'Obtener el historial de órdenes del usuario logueado' })
+  async findMyOrders(@Req() req) {
+    return this.ordersService.findByUser(req.user.userId);
+  }
 
   @ApiBearerAuth()
   @ApiTags('orders')
@@ -25,13 +34,6 @@ export class OrdersController {
   @Get()
   findAll() {
     return this.ordersService.findAll();
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('my-orders')
-  async findMyOrders(@Request() req) {
-    const userId = req.user.userId;
-    return this.ordersService.findByUser(userId);
   }
 
   @Get(':id')

@@ -5,7 +5,6 @@ import { Pool } from 'pg';
 import * as userSchema from '../users/entities/user.schema'; // Importa tus esquemas aquí
 import * as productSchema from '../products/entities/products.schema';
 import * as orderSchema from '../orders/entities/order.schema';
-import * as orderItemSchema from '../orders/entities/order-item.schema';
 
 export const DRIZZLE = 'DRIZZLE'; // Token único para inyección
 
@@ -13,7 +12,6 @@ export const appSchema = {
   ...userSchema,
   ...productSchema,
   ...orderSchema,
-  ...orderItemSchema
 };
 
 export type DrizzleDB = NodePgDatabase<typeof appSchema>;
