@@ -3,7 +3,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import * as schema from './entities/products.schema';
 import { DRIZZLE } from 'src/database/database.module';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { DrizzleDB } from '../database/database.module';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 import { join } from 'path';
@@ -12,7 +12,7 @@ import { productImagesTable } from './entities/product-images.schema';
 @Injectable()
 export class ProductsService {
   constructor(
-    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE) private db: DrizzleDB
   ) { }
 
   async create(createProductDto: CreateProductDto) {

@@ -2,17 +2,17 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { DRIZZLE } from '../database/database.module';
 import type { DrizzleDB } from '../database/database.module';
 import { ordersTable, orderItemsTable } from './entities/order.schema';
-import * as itemSchema from './entities/order-item.schema';
 import { productsTable } from '../products/entities/products.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { productImagesTable } from 'src/products/entities/product-images.schema';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB
-  ) {}
+  ) { }
 
   async create(createOrderDto: CreateOrderDto) {
     const { userId, items } = createOrderDto;
@@ -96,7 +96,7 @@ export class OrdersService {
           with: {
             product: true
           }
-        } 
+        }
       },
     });
   }
@@ -117,16 +117,23 @@ export class OrdersService {
 
 
   async findByUser(userId: number) {
-    return await this.db.query.ordersTable.findMany({
-      where: eq(ordersTable.userId, userId),
-      with: {
-        items: {
-          with: {
-            product: true,
-          },
-        },
-      },
-    });
+    const rows = await this.db
+      .select({
+        order: ordersTable,
+        item: orderItemsTable,
+        product: productsTable,
+        image: productImagesTable,
+      })
+      .from(ordersTable)
+      .leftJoin(orderItemsTable, eq(ordersTable.id, orderItemsTable.orderId))
+      .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
+      .leftJoin(productImagesTable, eq(productsTable.id, productImagesTable.productId))
+      .where(eq(ordersTable.userId, userId))
+      .orderBy(desc(ordersTable.createdAt));
+
+    if (!rows.length) return [];
+
+    return this.groupOrderResults(rows);
   }
 
   update(id: number, updateOrderDto: UpdateOrderDto) {
@@ -135,5 +142,55 @@ export class OrdersService {
 
   remove(id: number) {
     return `This action removes a #${id} order`;
+  }
+
+  private groupOrderResults(rows: any[]) {
+    const ordersMap = new Map();
+
+    for (const row of rows) {
+      const orderId = row.order.id;
+
+      // 1. Inicializar la orden si no existe en el mapa
+      if (!ordersMap.has(orderId)) {
+        ordersMap.set(orderId, {
+          id: row.order.id,
+          total: row.order.total,
+          createdAt: row.order.createdAt,
+          status: row.order.status,
+          items: new Map(),
+        });
+      }
+
+      const currentOrder = ordersMap.get(orderId);
+
+      // 2. Si la fila tiene un item, procesarlo
+      if (row.item) {
+        const itemId = row.item.id;
+
+        if (!currentOrder.items.has(itemId)) {
+          currentOrder.items.set(itemId, {
+            id: row.item.id,
+            quantity: row.item.quantity,
+            priceAtPurchase: row.item.priceAtPurchase,
+            productName: row.product?.name || 'Producto no disponible',
+            images: new Set(),
+          });
+        }
+
+        // 3. Agregar la imagen si existe
+        if (row.image?.url) {
+          currentOrder.items.get(itemId).images.add(row.image.url);
+        }
+      }
+    }
+
+    // 4. Convertir la estructura de Maps/Sets a un Array limpio para el JSON
+    return Array.from(ordersMap.values()).map(order => ({
+      ...order,
+      items: Array.from(order.items.values()).map((item: any) => ({
+        ...item,
+        images: Array.from(item.images),
+      })),
+    }));
   }
 }
