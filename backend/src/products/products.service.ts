@@ -1,13 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import * as schema from './entities/products.schema';
+import { productsTable, productImagesTable } from '../products/entities/products.schema';
 import { DRIZZLE } from 'src/database/database.module';
 import type { DrizzleDB } from '../database/database.module';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import * as fs from 'fs';
 import { join } from 'path';
-import { productImagesTable } from './entities/product-images.schema';
+
 
 @Injectable()
 export class ProductsService {
@@ -20,7 +20,7 @@ export class ProductsService {
 
     return await this.db.transaction(async (tx) => {
       const [newProduct] = await tx
-        .insert(schema.productsTable)
+        .insert(productsTable)
         .values({
           ...productData,
           price: productData.price.toString(),
@@ -44,15 +44,23 @@ export class ProductsService {
   }
 
   async findAll() {
-    return await this.db.query.productsTable.findMany();
+    return await this.db
+      .select()
+      .from(productsTable)
+      .where(isNull(productsTable.deletedAt));
   }
 
   async findOne(id: number) {
     const rows = await this.db
       .select()
-      .from(schema.productsTable)
-      .leftJoin(productImagesTable, eq(schema.productsTable.id, productImagesTable.productId))
-      .where(eq(schema.productsTable.id, id))
+      .from(productsTable)
+      .leftJoin(productImagesTable, eq(productsTable.id, productImagesTable.productId))
+      .where(
+        and(
+          eq(productsTable.id, id),
+          isNull(productsTable.deletedAt) // Filtro para el producto
+        )
+      );
 
     if (rows.length === 0) return null;
 
@@ -66,11 +74,11 @@ export class ProductsService {
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
-    
+
     const { images, ...productData } = updateProductDto;
 
     const existingProduct = await this.findOne(id);
-    if (!existingProduct){
+    if (!existingProduct) {
       throw new NotFoundException(`No existe un producto con ID: ${id}`)
     }
 
@@ -79,9 +87,9 @@ export class ProductsService {
         const updatePayload: any = { ...productData };
         if (productData.price) updatePayload.price = productData.price.toString();
 
-        await tx.update(schema.productsTable)
+        await tx.update(productsTable)
           .set(updatePayload)
-          .where(eq(schema.productsTable.id, id));
+          .where(eq(productsTable.id, id));
       }
 
       if (images !== undefined) {
@@ -115,26 +123,29 @@ export class ProductsService {
   }
 
   async remove(id: number) {
+    // 1. Verificamos si existe antes de hacer nada
     const product = await this.findOne(id);
-
     if (!product) {
-      throw new NotFoundException(`No existe un producto con ID: ${id}`);
+      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
     }
 
-    if (product.images && product.images.length > 0) {
-      product.images.forEach((img) => {
-        const relativePath = img.url.startsWith('/') ? img.url.substring(1) : img.url;
-        const filePath = join(process.cwd(), relativePath);
+    return await this.db.transaction(async (tx) => {
+      const now = new Date();
 
-        if (fs.existsSync(filePath)) {
-          try {
-            fs.unlinkSync(filePath);
-          } catch (err) {
-            console.error(`No se pudo borrar el archivo: ${filePath}`, err);
-          }
-        }
-      });
-    }
+      // 2. Borrado lógico del producto
+      await tx.update(productsTable)
+        .set({ deletedAt: now })
+        .where(eq(productsTable.id, id));
 
+      // 3. Borrado lógico de todas sus imágenes en la DB
+      await tx.update(productImagesTable)
+        .set({ deletedAt: now })
+        .where(eq(productImagesTable.productId, id));
+
+      return {
+        message: `Fueron borrados el producto #${id} y sus imágenes.`,
+        deletedAt: now
+      };
+    });
   }
 }

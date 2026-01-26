@@ -1,12 +1,11 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DRIZZLE } from '../database/database.module';
 import type { DrizzleDB } from '../database/database.module';
 import { ordersTable, orderItemsTable } from './entities/order.schema';
-import { productsTable } from '../products/entities/products.schema';
+import { productsTable, productImagesTable } from '../products/entities/products.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { desc, eq, inArray, sql } from 'drizzle-orm';
-import { productImagesTable } from 'src/products/entities/product-images.schema';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 @Injectable()
 export class OrdersService {
@@ -14,79 +13,69 @@ export class OrdersService {
     @Inject(DRIZZLE) private readonly db: DrizzleDB
   ) { }
 
-  async create(createOrderDto: CreateOrderDto) {
-    const { userId, items } = createOrderDto;
+  async create(createOrderDto: CreateOrderDto, userId: number) {
+  const { items } = createOrderDto;
 
-    // 1. Iniciar la transacción
-    return await this.db.transaction(async (tx) => {
-      let total = 0;
+  return await this.db.transaction(async (tx) => {
+    let total = 0;
+    
+    const preparedItems: { 
+      productId: number; 
+      quantity: number; 
+      priceAtPurchase: string 
+    }[] = [];
 
-      // 2. Obtener todos los productos involucrados para validar stock y precio actual
-      const productIds = items.map((i) => i.productId);
-      const dbProducts = await tx
+    for (const item of items) {
+      const [product] = await tx
         .select()
         .from(productsTable)
-        .where(inArray(productsTable.id, productIds));
+        .where(
+          and(
+            eq(productsTable.id, item.productId),
+            isNull(productsTable.deletedAt)
+          )
+        );
 
-      // 3. Validar y preparar los items para la inserción
-      const itemsToInsert = await Promise.all(
-        items.map(async (item) => {
-          const product = dbProducts.find((p) => p.id === item.productId);
+      if (!product) {
+        throw new NotFoundException(`Producto ID ${item.productId} no disponible.`);
+      }
 
-          if (!product) {
-            throw new BadRequestException(`Producto con ID ${item.productId} no encontrado`);
-          }
+      if (product.stock < item.quantity) {
+        throw new BadRequestException(`Stock insuficiente para: ${product.name}`);
+      }
 
-          // Validación de Stock
-          if (product.stock < item.quantity) {
-            throw new BadRequestException(
-              `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Solicitado: ${item.quantity}`,
-            );
-          }
+      // Actualizar stock
+      await tx.update(productsTable)
+        .set({ stock: product.stock - item.quantity })
+        .where(eq(productsTable.id, product.id));
 
-          const price = parseFloat(product.price);
-          total += price * item.quantity;
+      total += Number(product.price) * item.quantity;
 
-          // 4. Actualizar stock del producto (Resta atómica)
-          await tx
-            .update(productsTable)
-            .set({
-              stock: sql`${productsTable.stock} - ${item.quantity}`,
-            })
-            .where(eq(productsTable.id, item.productId));
+      preparedItems.push({
+        productId: product.id,
+        quantity: item.quantity,
+        priceAtPurchase: product.price, 
+      });
+    }
 
-          return {
-            productId: item.productId,
-            quantity: item.quantity,
-            priceAtPurchase: price.toString(),
-          };
-        }),
-      );
+    // 2. Crear la cabecera
+    const [newOrder] = await tx.insert(ordersTable).values({
+      userId,
+      total: total.toString(),
+      status: 'PENDING',
+    }).returning();
 
-      // 5. Crear la cabecera de la Orden
-      const [newOrder] = await tx
-        .insert(ordersTable)
-        .values({
-          userId,
-          total: total.toString(),
-        })
-        .returning();
+    // 3. Crear los items vinculando el ID de la orden recién creada
+    const finalItems = preparedItems.map(item => ({
+      ...item,
+      orderId: newOrder.id,
+    }));
 
-      // 6. Crear los detalles de la Orden (Order Items)
-      const orderItemsPrepared = itemsToInsert.map((item) => ({
-        ...item,
-        orderId: newOrder.id,
-      }));
+    await tx.insert(orderItemsTable).values(finalItems);
 
-      await tx.insert(orderItemsTable).values(orderItemsPrepared);
-
-      // 7. Retornar la orden creada con sus items
-      return {
-        ...newOrder,
-        items: orderItemsPrepared,
-      };
-    });
-  }
+    return newOrder;
+  });
+}
 
   async findAll() {
     return await this.db.query.ordersTable.findMany({
@@ -128,7 +117,10 @@ export class OrdersService {
       .leftJoin(orderItemsTable, eq(ordersTable.id, orderItemsTable.orderId))
       .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
       .leftJoin(productImagesTable, eq(productsTable.id, productImagesTable.productId))
-      .where(eq(ordersTable.userId, userId))
+      .where(and(
+        eq(ordersTable.userId, userId),
+        isNull(ordersTable.deletedAt)
+      ))
       .orderBy(desc(ordersTable.createdAt));
 
     if (!rows.length) return [];
@@ -140,8 +132,32 @@ export class OrdersService {
     return `This action updates a #${id} order`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} order`;
+  async remove(id: number) {
+    const order = await this.db.query.ordersTable.findFirst({
+      where: eq(ordersTable.id, id),
+      with: { items: true },
+    });
+
+    if (!order) throw new NotFoundException(`Orden #${id} no existe`);
+    if (order.deletedAt) throw new BadRequestException(`Esta orden ya fue eliminada`);
+
+    return await this.db.transaction(async (tx) => {
+      await tx.update(ordersTable)
+        .set({
+          deletedAt: new Date(),
+          status: 'CANCELLED',
+        })
+        .where(eq(ordersTable.id, id));
+
+      for (const item of order.items) {
+        await tx.update(productsTable)
+          .set({
+            stock: sql`${productsTable.stock} + ${item.quantity}`
+          })
+          .where(eq(productsTable.id, item.productId));
+      }
+      return { message: `Orden #${id} eliminada y stock restaurado.` };
+    });
   }
 
   private groupOrderResults(rows: any[]) {
@@ -192,5 +208,13 @@ export class OrdersService {
         images: Array.from(item.images),
       })),
     }));
+  }
+
+  async updateStatus(id: number, status: string) {
+    return await this.db
+      .update(ordersTable)
+      .set({ status: status as any })
+      .where(eq(ordersTable.id, id))
+      .returning();
   }
 }
