@@ -62,11 +62,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/node_modules/.bin
     depends_on:
       - backend
     networks:
       - ecommerce-network
-    command: pnpm run dev
+    command: pnpm dev --host 0.0.0.0
 
 networks:
   ecommerce-network:

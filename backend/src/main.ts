@@ -16,8 +16,14 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api', app, document); // La URL será /api
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document); // La URL será /api
 
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
