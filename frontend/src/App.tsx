@@ -4,6 +4,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'; // Importamos el guard
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Navbar from '@/components/Navbar';
+import CreateProduct from './pages/CreateProduct';
 
 // Páginas de ejemplo (puedes crearlas luego)
 const Perfil = () => <h1 className="text-2xl font-bold">Tu Perfil Privado</h1>;
@@ -21,21 +22,29 @@ function App() {
             <Route path="/login" element={<Login />} />
 
             {/* Rutas Protegidas */}
-            <Route 
-              path="/perfil" 
+            <Route
+              path='/nuevo-producto'
+              element={
+                <ProtectedRoute>
+                  <CreateProduct />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/perfil"
               element={
                 <ProtectedRoute>
                   <Perfil />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/carrito" 
+            <Route
+              path="/carrito"
               element={
                 <ProtectedRoute>
                   <Carrito />
                 </ProtectedRoute>
-              } 
+              }
             />
           </Routes>
         </main>
