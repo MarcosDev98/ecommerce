@@ -25,13 +25,6 @@ export default function Navbar() {
 
         {/* Enlaces de navegación */}
         <div className="flex items-center gap-6">
-          <Link
-            to="/"
-            className="text-gray-600 hover:text-ecommerce-primary font-medium transition-colors"
-          >
-            Catálogo
-          </Link>
-
           {/* Renderizado condicional basado en la autenticación */}
           {isAuthenticated ? (
             <div className="flex items-center gap-4">

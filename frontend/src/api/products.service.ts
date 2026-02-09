@@ -1,20 +1,5 @@
+import { CreateProduct, Product } from "@/types/product";
 import api from "./api";
-
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  description?: string;
-  stock: number;
-}
-
-export interface CreateProduct {
-  name: string;
-  description?: string;
-  price: number;
-  stock: number;
-  images?: string[];
-}
 
 export const getProducts = async (): Promise<Product[]> => {
   const response = await api.get<Product[]>('products');
@@ -33,7 +18,10 @@ export const uploadImage = async (file: File): Promise<string> => {
   const response = await api.post('/products/upload', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
-
   return response.data.imageUrl;
+}
 
+export const getProductById = async (id: string) => {
+  const response = await api.get(`/products/${id}`);
+  return response.data;
 }

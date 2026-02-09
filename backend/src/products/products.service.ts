@@ -8,6 +8,21 @@ import { eq, and, isNull } from 'drizzle-orm';
 import * as fs from 'fs';
 import { join } from 'path';
 
+export interface ProductImage {
+  id: number;
+  url: string;
+}
+
+export interface ProductWithImages {
+  id: number;
+  name: string;
+  description: string | null;
+  price: string;
+  stock: number;
+  images: ProductImage[];
+  createdAt: Date;
+  deletedAt: Date | null;
+}
 
 @Injectable()
 export class ProductsService {
@@ -43,46 +58,59 @@ export class ProductsService {
 
   }
 
-  async findAll() {
-    return await this.db
-      .select()
-      .from(productsTable)
-      .where(isNull(productsTable.deletedAt));
+  async findAll(): Promise<ProductWithImages[]> {
+    const rows = await this.db.query.productsTable.findMany({
+      where: (products, { isNull }) => isNull(products.deletedAt),
+      with: {
+        product_images: {
+          columns: { id: true, url: true }
+        },
+      },
+    });
+
+    // Mapeamos para que 'product_images' se llame 'images'
+    return rows.map(p => ({
+      ...p,
+      images: p.product_images
+    })) as ProductWithImages[];
   }
 
-  async findOne(id: number) {
-    const rows = await this.db
-      .select()
-      .from(productsTable)
-      .leftJoin(productImagesTable, eq(productsTable.id, productImagesTable.productId))
-      .where(
-        and(
-          eq(productsTable.id, id),
-          isNull(productsTable.deletedAt) // Filtro para el producto
-        )
-      );
+  async findOne(id: number): Promise<ProductWithImages | null> {
+    const result = await this.db.query.productsTable.findFirst({
+      where: eq(productsTable.id, id),
+      with: {
+        product_images: {
+          columns: {
+            id: true,
+            url: true,
+          },
+        },
+      },
+    });
 
-    if (rows.length === 0) return null;
+    if (!result) return null;
 
-    const product = {
-      ...rows[0].products,
-      images: rows
-        .map(r => r.product_images)
-        .filter(i => i !== null)
-    };
-    return product;
+    // Separamos product_images para renombrarlo a 'images'
+    const { product_images, ...productData } = result;
+
+    return {
+      ...productData,
+      images: product_images
+    } as ProductWithImages;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
-
     const { images, ...productData } = updateProductDto;
 
+    // Ahora TS sabe que existingProduct es ProductWithImages | null
     const existingProduct = await this.findOne(id);
+
     if (!existingProduct) {
-      throw new NotFoundException(`No existe un producto con ID: ${id}`)
+      throw new NotFoundException(`No existe un producto con ID: ${id}`);
     }
 
     return await this.db.transaction(async (tx) => {
+      // 1. Actualizar datos básicos del producto
       if (Object.keys(productData).length > 0) {
         const updatePayload: any = { ...productData };
         if (productData.price) updatePayload.price = productData.price.toString();
@@ -92,19 +120,29 @@ export class ProductsService {
           .where(eq(productsTable.id, id));
       }
 
+      // 2. Gestionar imágenes si vienen en el DTO
       if (images !== undefined) {
+        // images es string[] (nuevas URLs) 
+        // existingProduct.images es {id, url}[] (URLs actuales en DB)
+
         const imagesToDelete = existingProduct.images.filter(
           (oldImg) => !images.includes(oldImg.url)
         );
 
+        // Borrar archivos físicos del servidor
         imagesToDelete.forEach((img) => {
           const relativePath = img.url.startsWith('/') ? img.url.substring(1) : img.url;
           const filePath = join(process.cwd(), relativePath);
           if (fs.existsSync(filePath)) {
-            try { fs.unlinkSync(filePath); } catch (e) { console.error(`No se pudo borrar el archivo: ${filePath}`, e); }
+            try {
+              fs.unlinkSync(filePath);
+            } catch (e) {
+              console.error(`No se pudo borrar el archivo: ${filePath}`, e);
+            }
           }
         });
 
+        // Sincronizar tabla de imágenes: Borramos todas y re-insertamos las actuales
         await tx.delete(productImagesTable)
           .where(eq(productImagesTable.productId, id));
 

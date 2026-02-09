@@ -5,6 +5,7 @@ import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Navbar from '@/components/Navbar';
 import CreateProduct from './pages/CreateProduct';
+import ProductDetail from './pages/ProductDetail';
 
 // Páginas de ejemplo (puedes crearlas luego)
 const Perfil = () => <h1 className="text-2xl font-bold">Tu Perfil Privado</h1>;
@@ -20,6 +21,7 @@ function App() {
             {/* Rutas Públicas */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/producto/:id" element={<ProductDetail />} />
 
             {/* Rutas Protegidas */}
             <Route
