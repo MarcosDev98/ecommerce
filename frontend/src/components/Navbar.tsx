@@ -47,6 +47,12 @@ export default function Navbar() {
               >
                 Mi Carrito
               </Link>
+              <Link
+                to="/nuevo-producto"
+                className="text-gray-600 hover:text-ecommerce-primary font-medium"
+              >
+                Nuevo Producto
+              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-semibold border border-red-100 hover:bg-red-600 hover:text-white transition-all"
