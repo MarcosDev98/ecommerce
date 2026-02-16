@@ -1,7 +1,10 @@
+import { useCart } from "@/context/CartContext";
 import { ProductCardProps } from "@/types/product";
 import { Link } from "react-router-dom";
 
 export default function ProductCard({ product }: ProductCardProps) {
+
+  const { addToCart } = useCart();
 
   const imageUrl = product.images && product.images.length > 0
     ? `http://localhost:3000${product.images[0].url}`
@@ -34,6 +37,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             Ver detalle
           </Link>
+          <button
+            onClick={() => addToCart(product)}
+            className="bg-blue-50 text-ecommerce-primary px-3 py-1 rounded-lg text-sm font-semibold hover:bg-ecommerce-primary hover:text-white transition-colors hover:"
+          >
+            Agregar al Carrito
+          </button>
         </div>
       </div>
     </div>

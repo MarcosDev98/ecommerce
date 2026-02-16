@@ -24,3 +24,7 @@ export interface CreateProduct {
 export interface ProductCardProps {
   product: Product;
 }
+
+export interface CartItem extends Product {
+  quantity: number;
+}
