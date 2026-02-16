@@ -1,10 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/api/auth.context';
+import { useCart } from '@/context/CartContext';
+
 
 export default function Navbar() {
   const navigate = useNavigate();
   // Extraemos el estado y la función de cierre de sesión del contexto
   const { isAuthenticated, logoutUser } = useAuth();
+
+  const { toggleCart, totalItems } = useCart();
 
   const handleLogout = () => {
     logoutUser(); // El contexto se encarga de limpiar el localStorage y actualizar el estado
@@ -51,6 +55,14 @@ export default function Navbar() {
                 className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-semibold border border-red-100 hover:bg-red-600 hover:text-white transition-all"
               >
                 Cerrar Sesión
+              </button>
+              <button onClick={toggleCart} className="relative">
+                🛒
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
               </button>
             </div>
           ) : (
