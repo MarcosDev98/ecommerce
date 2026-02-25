@@ -1,7 +1,14 @@
 import { useCart } from '@/context/CartContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function CartDrawer() {
   const { cart, isOpen, toggleCart, removeFromCart, addToCart, decreaseQuantity, totalPrice } = useCart();
+  const navigate = useNavigate();
+
+  const handleGoToCheckout = () => {
+    toggleCart();
+    navigate('/checkout')
+  }
 
   return (
     <>
@@ -55,7 +62,7 @@ export default function CartDrawer() {
               <span>Total:</span>
               <span>${totalPrice.toLocaleString()}</span>
             </div>
-            <button className="w-full bg-black text-white py-4 uppercase font-bold tracking-widest hover:bg-gray-800 transition-colors">
+            <button onClick={handleGoToCheckout} className="w-full bg-black text-white py-4 uppercase font-bold tracking-widest hover:bg-gray-800 transition-colors">
               Iniciar Compra
             </button>
             <button onClick={toggleCart} className="w-full text-center mt-4 text-xs underline uppercase tracking-tighter">
