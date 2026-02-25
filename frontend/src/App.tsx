@@ -8,6 +8,7 @@ import CreateProduct from './pages/CreateProduct';
 import ProductDetail from './pages/ProductDetail';
 import { CartProvider } from './context/CartContext';
 import CartDrawer from './components/CartDrawer';
+import Checkout from './components/Checkout';
 
 // Páginas de ejemplo
 const Perfil = () => <h1 className="text-2xl font-bold">Tu Perfil Privado</h1>;
@@ -57,6 +58,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
             </Routes>
           </main>
         </BrowserRouter>
