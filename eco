@@ -21,7 +21,7 @@ case "$1" in
     docker exec -it $2 sh
     ;;
   help | * ) 
-    echo "Uso: ./docker.sh [comando]"
+    echo "Uso: ./eco [comando]"
     echo ""
     echo "Comandos disponibles:"
     echo "  build    - Construir imágenes"
