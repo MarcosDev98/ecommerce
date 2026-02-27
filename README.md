@@ -1,6 +1,6 @@
 # Fullstack E-commerce App 🛒
 
-![CI Pipeline](https://github.com/MarcosDev98/ecommerce/actions/workflows/main.yml/badge.svg)
+[![CI Pipeline](https://github.com/MarcosDev98/ecommerce/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/MarcosDev98/ecommerce/actions/workflows/main.yml)
 
 Este es un proyecto de comercio electrónico completo que utiliza una arquitectura desacoplada con un **Backend** robusto en NestJS y un **Frontend** reactivo con React 19.
 
