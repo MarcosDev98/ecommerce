@@ -68,4 +68,3 @@ function App() {
 }
 
 export default App;
-const errorDePrueba: number = "Soy un string, esto va a fallar";
