@@ -1,10 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { productsTable, productImagesTable } from '../products/entities/products.schema';
+import {
+  productsTable,
+  productImagesTable,
+} from '../products/entities/products.schema';
 import { DRIZZLE } from 'src/database/database.module';
 import type { DrizzleDB } from '../database/database.module';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, InferInsertModel } from 'drizzle-orm';
 import * as fs from 'fs';
 import { join } from 'path';
 
@@ -26,9 +29,7 @@ export interface ProductWithImages {
 
 @Injectable()
 export class ProductsService {
-  constructor(
-    @Inject(DRIZZLE) private db: DrizzleDB
-  ) { }
+  constructor(@Inject(DRIZZLE) private db: DrizzleDB) {}
 
   async create(createProductDto: CreateProductDto) {
     const { images, ...productData } = createProductDto;
@@ -52,10 +53,9 @@ export class ProductsService {
       return {
         ...newProduct,
         price: parseFloat(newProduct.price), // Lo devolvemos como número para comodidad del cliente
-        images: images || []
+        images: images || [],
       };
     });
-
   }
 
   async findAll(): Promise<ProductWithImages[]> {
@@ -63,15 +63,15 @@ export class ProductsService {
       where: (products, { isNull }) => isNull(products.deletedAt),
       with: {
         product_images: {
-          columns: { id: true, url: true }
+          columns: { id: true, url: true },
         },
       },
     });
 
     // Mapeamos para que 'product_images' se llame 'images'
-    return rows.map(p => ({
+    return rows.map((p) => ({
       ...p,
-      images: p.product_images
+      images: p.product_images,
     })) as ProductWithImages[];
   }
 
@@ -95,55 +95,56 @@ export class ProductsService {
 
     return {
       ...productData,
-      images: product_images
+      images: product_images,
     } as ProductWithImages;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
     const { images, ...productData } = updateProductDto;
 
-    // Ahora TS sabe que existingProduct es ProductWithImages | null
     const existingProduct = await this.findOne(id);
-
     if (!existingProduct) {
       throw new NotFoundException(`No existe un producto con ID: ${id}`);
     }
 
     return await this.db.transaction(async (tx) => {
-      // 1. Actualizar datos básicos del producto
       if (Object.keys(productData).length > 0) {
-        const updatePayload: any = { ...productData };
-        if (productData.price) updatePayload.price = productData.price.toString();
+        // CORRECCIÓN: Usamos el tipo parcial de inserción de la tabla
+        const updatePayload: Partial<InferInsertModel<typeof productsTable>> = {
+          ...productData,
+          // Si productData ya trae price como number, lo convertimos aquí de forma segura
+          price: productData.price?.toString(),
+        };
 
-        await tx.update(productsTable)
-          .set(updatePayload)
+        await tx
+          .update(productsTable)
+          .set(updatePayload) // Ahora Drizzle sabe que los datos coinciden con la tabla
           .where(eq(productsTable.id, id));
       }
 
-      // 2. Gestionar imágenes si vienen en el DTO
+      // 2. Gestionar imágenes (tu lógica actual está bien, solo quitemos el 'any' si lo hubiera)
       if (images !== undefined) {
-        // images es string[] (nuevas URLs) 
-        // existingProduct.images es {id, url}[] (URLs actuales en DB)
-
         const imagesToDelete = existingProduct.images.filter(
-          (oldImg) => !images.includes(oldImg.url)
+          (oldImg) => !images.includes(oldImg.url),
         );
 
-        // Borrar archivos físicos del servidor
         imagesToDelete.forEach((img) => {
-          const relativePath = img.url.startsWith('/') ? img.url.substring(1) : img.url;
+          const relativePath = img.url.startsWith('/')
+            ? img.url.substring(1)
+            : img.url;
           const filePath = join(process.cwd(), relativePath);
           if (fs.existsSync(filePath)) {
             try {
               fs.unlinkSync(filePath);
-            } catch (e) {
-              console.error(`No se pudo borrar el archivo: ${filePath}`, e);
+            } catch (error) {
+              // Cambiamos 'e' por 'error' (mejor práctica)
+              console.error(`No se pudo borrar el archivo: ${filePath}`, error);
             }
           }
         });
 
-        // Sincronizar tabla de imágenes: Borramos todas y re-insertamos las actuales
-        await tx.delete(productImagesTable)
+        await tx
+          .delete(productImagesTable)
           .where(eq(productImagesTable.productId, id));
 
         if (images.length > 0) {
@@ -151,8 +152,7 @@ export class ProductsService {
             url,
             productId: id,
           }));
-          await tx.insert(productImagesTable)
-            .values(newImageRecords);
+          await tx.insert(productImagesTable).values(newImageRecords);
         }
       }
 
@@ -171,18 +171,20 @@ export class ProductsService {
       const now = new Date();
 
       // 2. Borrado lógico del producto
-      await tx.update(productsTable)
+      await tx
+        .update(productsTable)
         .set({ deletedAt: now })
         .where(eq(productsTable.id, id));
 
       // 3. Borrado lógico de todas sus imágenes en la DB
-      await tx.update(productImagesTable)
+      await tx
+        .update(productImagesTable)
         .set({ deletedAt: now })
         .where(eq(productImagesTable.productId, id));
 
       return {
         message: `Fueron borrados el producto #${id} y sus imágenes.`,
-        deletedAt: now
+        deletedAt: now,
       };
     });
   }

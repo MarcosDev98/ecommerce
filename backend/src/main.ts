@@ -5,7 +5,6 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -25,16 +24,20 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document); // La URL será /api
 
-
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,     // Elimina campos que no estén en el DTO
-    forbidNonWhitelisted: true, // Lanza error si envían campos extraños
-    transform: true,      // Convierte los tipos automáticamente
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Elimina campos que no estén en el DTO
+      forbidNonWhitelisted: true, // Lanza error si envían campos extraños
+      transform: true, // Convierte los tipos automáticamente
+    }),
+  );
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Error al iniciar la aplicación:', err);
+  process.exit(1);
+});

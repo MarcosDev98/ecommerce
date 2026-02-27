@@ -21,10 +21,10 @@ export class CreateProductDto {
   @Min(0)
   stock: number;
 
-  @ApiProperty({ 
-    required: false, 
+  @ApiProperty({
+    required: false,
     example: '/uploads/products/image1.jpg, /upload/products/image2.png',
-    description: 'Arreglo de URLs de las imágenes ya subidas'
+    description: 'Arreglo de URLs de las imágenes ya subidas',
   })
   @IsArray()
   @IsString({ each: true })

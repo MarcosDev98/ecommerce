@@ -1,4 +1,4 @@
-import { useCart } from "@/context/CartContext";
+import { useCart } from "@/context/cart";
 import { ProductCardProps } from "@/types/product";
 import { Link } from "react-router-dom";
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/api/auth.service';
-import { useAuth } from '@/api/auth.context';
+import { useAuth } from '@/api/use-auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,7 +16,7 @@ export default function Login() {
       const response = await login(email, password);
       loginUser(response.access_token);
       navigate('/');
-    } catch (error) {
+    } catch {
       alert('Error');
     }
   };

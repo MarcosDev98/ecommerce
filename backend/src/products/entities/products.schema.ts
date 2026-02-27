@@ -1,13 +1,22 @@
 import { relations } from 'drizzle-orm';
-import { integer, pgTable, varchar, decimal, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  integer,
+  pgTable,
+  varchar,
+  decimal,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
-export const productsTable = pgTable("products", {
+export const productsTable = pgTable('products', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 255 }).notNull(),
   description: text(),
   price: decimal({ precision: 10, scale: 2 }).notNull(),
   stock: integer().default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   deletedAt: timestamp('deleted_at'),
 });
 
@@ -24,9 +33,12 @@ export const productsRelations = relations(productsTable, ({ many }) => ({
   product_images: many(productImagesTable),
 }));
 
-export const productImagesRelations = relations(productImagesTable, ({ one }) => ({
-  product: one(productsTable, {
-    fields: [productImagesTable.productId],
-    references: [productsTable.id],
+export const productImagesRelations = relations(
+  productImagesTable,
+  ({ one }) => ({
+    product: one(productsTable, {
+      fields: [productImagesTable.productId],
+      references: [productsTable.id],
+    }),
   }),
-}));
+);

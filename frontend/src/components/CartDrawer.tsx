@@ -1,4 +1,5 @@
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/context/cart';
+import { CartItem } from '@/types/product';
 import { useNavigate } from 'react-router-dom';
 
 export default function CartDrawer() {
@@ -30,7 +31,7 @@ export default function CartDrawer() {
 
           {/* Lista de Items (Scrollable) */}
           <div className="flex-1 overflow-y-auto py-4 space-y-6">
-            {cart.map((item) => (
+            {cart.map((item: CartItem) => (
               <div key={item.id} className="flex gap-4 items-center border-b pb-4">
                 <img
                   src={`http://localhost:3000${item.images[0]?.url}`}

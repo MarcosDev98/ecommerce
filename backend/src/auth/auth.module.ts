@@ -15,12 +15,13 @@ import { PassportModule } from '@nestjs/passport';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'secretKeyTemporaria',
+        secret:
+          configService.get<string>('JWT_SECRET') || 'secretKeyTemporaria',
         signOptions: { expiresIn: '1h' },
       }),
     }),
   ],
   providers: [AuthService, JwtStrategy],
-  controllers: [AuthController]
+  controllers: [AuthController],
 })
 export class AuthModule {}

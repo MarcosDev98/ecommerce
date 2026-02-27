@@ -1,4 +1,5 @@
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/context/cart';
+import { CartItem } from '@/types/product';
 import { Link } from 'react-router-dom';
 
 export default function Checkout() {
@@ -61,7 +62,7 @@ export default function Checkout() {
 
           {/* LISTA DE PRODUCTOS */}
           <div className="space-y-6 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {cart.map((item) => (
+            {cart.map((item: CartItem) => (
               <div key={item.id} className="flex justify-between items-center group">
                 <div className="flex items-center gap-4">
                   <div className="relative">

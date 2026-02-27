@@ -28,7 +28,7 @@ export type DrizzleDB = NodePgDatabase<typeof appSchema>;
           connectionString,
         });
         // Unimos todos los esquemas en un solo objeto.
-        return drizzle(pool, {schema: appSchema });
+        return drizzle(pool, { schema: appSchema });
       },
     },
   ],

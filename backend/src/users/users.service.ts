@@ -9,15 +9,15 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @Inject(DRIZZLE) private readonly db: DrizzleDB
-  ) { }
-
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   async create(createUserDto: CreateUserDto) {
     console.log('--- ENTRANDO AL CREATE DEL SERVICIO ---');
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      saltRounds,
+    );
     console.log('Password original:', createUserDto.password);
     console.log('Hash generado:', hashedPassword);
 
@@ -31,16 +31,13 @@ export class UsersService {
       })
       .returning();
 
-    const { password, ...userWithoutPassword } = newUser;
+    const { ...userWithoutPassword } = newUser;
     return userWithoutPassword;
   }
 
   async findByEmail(email: string) {
     return await this.db.query.usersTable.findFirst({
-      where: and(
-        eq(usersTable.email, email),
-        isNull(usersTable.deletedAt)
-      )
+      where: and(eq(usersTable.email, email), isNull(usersTable.deletedAt)),
     });
   }
 
@@ -62,11 +59,10 @@ export class UsersService {
       .update(usersTable)
       .set(updateUserDto)
       .where(eq(usersTable.id, id))
-      .returning()
+      .returning();
   }
 
   async remove(id: number) {
-
     const user = await this.findOne(id);
 
     if (!user) {
@@ -77,6 +73,6 @@ export class UsersService {
       .update(usersTable)
       .set({ deletedAt: new Date() })
       .where(eq(usersTable.id, id))
-      .returning()
+      .returning();
   }
 }

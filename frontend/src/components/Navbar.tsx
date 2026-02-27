@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/api/auth.context';
-import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/api/use-auth';
+import { useCart } from '@/context/cart';
 
 
 export default function Navbar() {
